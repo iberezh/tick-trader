@@ -17,6 +17,7 @@ export interface EquityPoint {
 }
 
 export function toCandles(ticks: { price: number; ts: number }[], bucketMs: number): Candle[] {
+  if (bucketMs <= 0) return []; // defensive: callers validate, but never divide by zero
   const byBucket = new Map<number, Candle>();
   for (const tick of ticks) {
     const t = Math.floor(tick.ts / bucketMs) * bucketMs;
@@ -39,7 +40,8 @@ export function toCandles(ticks: { price: number; ts: number }[], bucketMs: numb
 }
 
 // Mark-to-market equity at each bucket boundary: fold trades <= t, value at the latest
-// tick price <= t per symbol. `ticks` must be sorted ascending by ts.
+// tick price <= t per symbol. `ticks` must be sorted ascending by ts. Callers bound the
+// bucket count; the guard below keeps the loop finite regardless.
 export function sampleEquityCurve(
   trades: TradeExecuted[],
   ticks: { symbol: string; price: number; ts: number }[],
@@ -48,6 +50,7 @@ export function sampleEquityCurve(
   bucketMs: number,
   startingCash: number,
 ): EquityPoint[] {
+  if (bucketMs <= 0 || fromMs > toMs) return [];
   const points: EquityPoint[] = [];
   for (let t = fromMs; t <= toMs; t += bucketMs) {
     const priceBySymbol: Record<string, number> = {};

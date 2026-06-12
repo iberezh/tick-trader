@@ -1,29 +1,42 @@
 import type { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox';
 import { Type } from '@sinclair/typebox';
 import { buildPortfolio, STARTING_CASH } from '@tick-trader/contracts';
-import { latestPricesAsOf, listTradesUpTo, ticksInRange, ticksUpTo } from '../db.js';
+import { latestPricesAsOf, listTradesUpTo, ticksInRange, ticksInRangeAllSymbols } from '../db.js';
 import { sampleEquityCurve, toCandles } from '../projections.js';
 import type { SseHub } from '../sse.js';
 
 const HOUR_MS = 3_600_000;
+const MAX_POINTS = 5_000; // cap chart resolution to keep queries/loops bounded
 
 interface QueryDeps {
   hub: SseHub;
   latestPrices: Record<string, number>;
 }
 
+const RangeQuery = {
+  from: Type.Optional(Type.Number()),
+  to: Type.Optional(Type.Number()),
+  bucket: Type.Optional(Type.Integer({ minimum: 1, maximum: 86_400 })),
+};
 const PortfolioQuery = Type.Object({ at: Type.Optional(Type.String()) });
-const PricesQuery = Type.Object({
-  symbol: Type.String(),
-  from: Type.Optional(Type.Number()),
-  to: Type.Optional(Type.Number()),
-  bucket: Type.Optional(Type.Number()),
-});
-const MetricsQuery = Type.Object({
-  from: Type.Optional(Type.Number()),
-  to: Type.Optional(Type.Number()),
-  bucket: Type.Optional(Type.Number()),
-});
+const PricesQuery = Type.Object({ symbol: Type.String(), ...RangeQuery });
+const MetricsQuery = Type.Object(RangeQuery);
+
+interface Window {
+  from: number;
+  to: number;
+  bucketMs: number;
+}
+
+// Resolve+validate the time window; null means a 400 (bad range or too many buckets).
+function resolveWindow(q: { from?: number; to?: number; bucket?: number }): Window | null {
+  const to = q.to ?? Date.now();
+  const from = q.from ?? to - HOUR_MS;
+  const bucketMs = (q.bucket ?? 60) * 1000;
+  if (from >= to || bucketMs <= 0) return null;
+  if ((to - from) / bucketMs > MAX_POINTS) return null;
+  return { from, to, bucketMs };
+}
 
 export function queryRoutes(deps: QueryDeps): FastifyPluginAsyncTypebox {
   return (app) => {
@@ -37,21 +50,41 @@ export function queryRoutes(deps: QueryDeps): FastifyPluginAsyncTypebox {
       return buildPortfolio(trades, STARTING_CASH, prices, asOf);
     });
 
-    app.get('/api/v1/prices', { schema: { querystring: PricesQuery } }, async (request) => {
-      const to = request.query.to ?? Date.now();
-      const from = request.query.from ?? to - HOUR_MS;
-      const bucketMs = (request.query.bucket ?? 60) * 1000;
-      const ticks = await ticksInRange(request.query.symbol, from, to);
-      return toCandles(ticks, bucketMs);
+    app.get('/api/v1/prices', { schema: { querystring: PricesQuery } }, async (request, reply) => {
+      const w = resolveWindow(request.query);
+      if (!w) return reply.code(400).send({ error: 'invalid range or bucket' });
+      const ticks = await ticksInRange(request.query.symbol, w.from, w.to);
+      return toCandles(ticks, w.bucketMs);
     });
 
-    app.get('/api/v1/metrics', { schema: { querystring: MetricsQuery } }, async (request) => {
-      const to = request.query.to ?? Date.now();
-      const from = request.query.from ?? to - HOUR_MS;
-      const bucketMs = (request.query.bucket ?? 60) * 1000;
-      const [trades, ticks] = await Promise.all([listTradesUpTo(to), ticksUpTo(to)]);
-      return sampleEquityCurve(trades, ticks, from, to, bucketMs, STARTING_CASH);
-    });
+    app.get(
+      '/api/v1/metrics',
+      { schema: { querystring: MetricsQuery } },
+      async (request, reply) => {
+        const w = resolveWindow(request.query);
+        if (!w) return reply.code(400).send({ error: 'invalid range or bucket' });
+        const [trades, seed, rangeTicks] = await Promise.all([
+          listTradesUpTo(w.to),
+          latestPricesAsOf(w.from),
+          ticksInRangeAllSymbols(w.from, w.to),
+        ]);
+        // Seed each symbol's price as of the window start so positions opened earlier
+        // are still marked correctly at the left edge of the curve.
+        const seedTicks = Object.entries(seed).map(([symbol, price]) => ({
+          symbol,
+          price,
+          ts: w.from,
+        }));
+        return sampleEquityCurve(
+          trades,
+          [...seedTicks, ...rangeTicks],
+          w.from,
+          w.to,
+          w.bucketMs,
+          STARTING_CASH,
+        );
+      },
+    );
 
     app.get('/api/v1/events', async () => ({ trades: await listTradesUpTo() }));
 

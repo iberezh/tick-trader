@@ -18,6 +18,10 @@ test('toCandles buckets ticks into OHLC', () => {
   assert.deepEqual(candles[1], { t: 1000, open: 105, high: 105, low: 105, close: 105 });
 });
 
+test('toCandles guards against a non-positive bucket', () => {
+  assert.deepEqual(toCandles([{ price: 100, ts: 0 }], 0), []);
+});
+
 test('sampleEquityCurve marks the portfolio to market at each bucket', () => {
   const trades: TradeExecuted[] = [
     { orderId: 'o', symbol: 'BTCUSDT', side: 'buy', qty: 2, price: 100, executedAt: 500 },
@@ -31,4 +35,8 @@ test('sampleEquityCurve marks the portfolio to market at each bucket', () => {
   assert.equal(curve[1]?.cash, 800); // bought 2@100
   assert.equal(curve[1]?.equity, 1060); // 800 + 2*130
   assert.equal(curve[1]?.unrealizedPnl, 60);
+});
+
+test('sampleEquityCurve guards against a non-positive bucket', () => {
+  assert.deepEqual(sampleEquityCurve([], [], 0, 1000, 0, 1000), []);
 });

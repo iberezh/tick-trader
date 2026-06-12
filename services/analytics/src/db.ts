@@ -99,12 +99,14 @@ export async function latestPricesAsOf(atMs: number): Promise<Record<string, num
   return Object.fromEntries(rows.map((r) => [r.symbol, r.price]));
 }
 
-export async function ticksUpTo(
+export async function ticksInRangeAllSymbols(
+  fromMs: number,
   toMs: number,
 ): Promise<{ symbol: string; price: number; ts: number }[]> {
   const rows = await db
     .selectFrom('price_ticks')
     .select(['symbol', 'price', 'ts'])
+    .where('ts', '>=', new Date(fromMs))
     .where('ts', '<=', new Date(toMs))
     .orderBy('ts')
     .execute();
