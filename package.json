@@ -1,0 +1,22 @@
+{
+  "name": "tick-trader",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.13.1",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "type-check": "pnpm -r --parallel exec tsc --noEmit",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "test": "pnpm -r --parallel test",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.2.0",
+    "@types/node": "^22.10.0",
+    "husky": "^9.1.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.8.0"
+  }
+}
