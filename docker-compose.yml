@@ -62,5 +62,17 @@ services:
       kafka: { condition: service_healthy }
       postgres: { condition: service_healthy }
 
+  analytics:
+    build: { context: ., dockerfile: services/analytics/Dockerfile }
+    environment:
+      KAFKA_BROKERS: kafka:9092
+      DATABASE_URL: postgresql://tick:tick@postgres:5432/tick
+      PORT: '4003'
+    ports:
+      - '4003:4003'
+    depends_on:
+      kafka: { condition: service_healthy }
+      postgres: { condition: service_healthy }
+
 volumes:
   pgdata:
