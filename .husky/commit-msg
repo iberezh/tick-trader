@@ -1,0 +1,5 @@
+commit_regex='^(feat|fix|chore|refactor|docs|test|ci|build|perf|style)(\(.+\))?: .{1,}'
+if ! grep -qE "$commit_regex" "$1"; then
+  echo "✗ Commit message must follow Conventional Commits (e.g. 'feat: add order endpoint')."
+  exit 1
+fi

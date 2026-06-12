@@ -1,0 +1,7 @@
+branch=$(git rev-parse --abbrev-ref HEAD)
+branch_regex='^(feat|fix|chore|refactor|docs|test|ci|build|perf)/[a-z0-9._-]+$'
+if [ "$branch" != "main" ] && ! echo "$branch" | grep -qE "$branch_regex"; then
+  echo "✗ Branch '$branch' must match <prefix>/<kebab>, e.g. feat/foundation-pipeline."
+  exit 1
+fi
+pnpm lint
