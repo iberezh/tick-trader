@@ -74,5 +74,18 @@ services:
       kafka: { condition: service_healthy }
       postgres: { condition: service_healthy }
 
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_TRADING_URL: http://localhost:4001/api/v1
+        VITE_ANALYTICS_URL: http://localhost:4003/api/v1
+    ports:
+      - '3000:3000'
+    depends_on:
+      - trading
+      - analytics
+
 volumes:
   pgdata:

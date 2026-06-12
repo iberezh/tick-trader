@@ -1,3 +1,4 @@
+import fastifyCors from '@fastify/cors';
 import fastifySwagger from '@fastify/swagger';
 import fastifySwaggerUi from '@fastify/swagger-ui';
 import type { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
@@ -12,6 +13,7 @@ async function main(): Promise<void> {
   await startPriceCache(lastPrice);
 
   const app = fastify().withTypeProvider<TypeBoxTypeProvider>();
+  await app.register(fastifyCors, { origin: true });
   await app.register(fastifySwagger, {
     openapi: { info: { title: 'tick-trader · trading', version: '0.1.0' } },
   });
