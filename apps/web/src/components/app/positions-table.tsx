@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { usePortfolio } from '@/hooks/use-portfolio';
-import { money, num, signed } from '@/lib/format';
+import { formatSymbol, money, num, signed } from '@/lib/format';
 import { useStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 
@@ -33,7 +33,7 @@ export function PositionsTable() {
                 const pnl = p.qty * (last - p.avgCost);
                 return (
                   <tr key={p.symbol} className="border-t">
-                    <td className="py-1.5 font-medium">{p.symbol}</td>
+                    <td className="py-1.5 font-medium">{formatSymbol(p.symbol)}</td>
                     <td className="text-right tabular-nums">{num(p.qty)}</td>
                     <td className="text-right tabular-nums">{money(p.avgCost)}</td>
                     <td className="text-right tabular-nums">{money(last)}</td>

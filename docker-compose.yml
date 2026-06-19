@@ -82,7 +82,8 @@ services:
         VITE_TRADING_URL: http://localhost:4001/api/v1
         VITE_ANALYTICS_URL: http://localhost:4003/api/v1
     ports:
-      - '3000:3000'
+      # Override WEB_PORT if 3000 is taken locally.
+      - '${WEB_PORT:-3000}:3000'
     depends_on:
       - trading
       - analytics

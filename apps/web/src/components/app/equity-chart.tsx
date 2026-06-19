@@ -12,6 +12,8 @@ import { useStore } from '@/lib/store';
 
 export function EquityChart() {
   const tradeCount = useStore((s) => s.trades.length);
+  const mode = useStore((s) => s.mode);
+  const asOf = useStore((s) => s.asOf);
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<'Line'> | null>(null);
@@ -34,7 +36,8 @@ export function EquityChart() {
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: refetch the curve whenever a new trade lands
   useEffect(() => {
-    getMetrics(60)
+    const to = mode === 'historical' && asOf ? asOf : undefined;
+    getMetrics(60, to)
       .then((points) => {
         seriesRef.current?.setData(
           points.map((p) => ({ time: (p.t / 1000) as UTCTimestamp, value: p.equity })),
@@ -42,7 +45,7 @@ export function EquityChart() {
         chartRef.current?.timeScale().fitContent();
       })
       .catch(() => {});
-  }, [tradeCount]);
+  }, [tradeCount, mode, asOf]);
 
   return (
     <Card>

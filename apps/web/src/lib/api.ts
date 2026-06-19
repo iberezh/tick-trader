@@ -8,9 +8,10 @@ export const ENDPOINTS = {
   orders: `${TRADING}/orders`,
   portfolio: `${ANALYTICS}/portfolio`,
   portfolioAt: (iso: string) => `${ANALYTICS}/portfolio?at=${encodeURIComponent(iso)}`,
-  prices: (symbol: string, bucket: number) =>
-    `${ANALYTICS}/prices?symbol=${symbol}&bucket=${bucket}`,
-  metrics: (bucket: number) => `${ANALYTICS}/metrics?bucket=${bucket}`,
+  prices: (symbol: string, bucket: number, to?: number) =>
+    `${ANALYTICS}/prices?symbol=${symbol}&bucket=${bucket}${to ? `&to=${to}` : ''}`,
+  metrics: (bucket: number, to?: number) =>
+    `${ANALYTICS}/metrics?bucket=${bucket}${to ? `&to=${to}` : ''}`,
   events: `${ANALYTICS}/events`,
   stream: `${ANALYTICS}/stream`,
 } as const;
@@ -38,9 +39,10 @@ async function getJson<T>(url: string): Promise<T> {
 
 export const getEvents = () => getJson<{ trades: TradeExecuted[] }>(ENDPOINTS.events);
 export const getPortfolioAt = (iso: string) => getJson<Portfolio>(ENDPOINTS.portfolioAt(iso));
-export const getCandles = (symbol: string, bucket = 15) =>
-  getJson<Candle[]>(ENDPOINTS.prices(symbol, bucket));
-export const getMetrics = (bucket = 60) => getJson<EquityPoint[]>(ENDPOINTS.metrics(bucket));
+export const getCandles = (symbol: string, bucket = 15, to?: number) =>
+  getJson<Candle[]>(ENDPOINTS.prices(symbol, bucket, to));
+export const getMetrics = (bucket = 60, to?: number) =>
+  getJson<EquityPoint[]>(ENDPOINTS.metrics(bucket, to));
 
 export interface OrderInput {
   symbol: string;
