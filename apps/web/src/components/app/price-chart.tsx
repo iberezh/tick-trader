@@ -1,94 +1,52 @@
-import {
-  type CandlestickData,
-  createChart,
-  type IChartApi,
-  type ISeriesApi,
-  type UTCTimestamp,
-} from 'lightweight-charts';
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { getCandles } from '@/lib/api';
-import { chartOptions, DOWN, UP } from '@/lib/chart-theme';
+import { type Candle, getCandles } from '@/lib/api';
+import { candleOption } from '@/lib/chart-theme';
 import { formatSymbol } from '@/lib/format';
 import { store, useStore } from '@/lib/store';
+import { EChart } from './echart';
 
 const BUCKET_SEC = 15;
-const bucketOf = (ms: number): UTCTimestamp =>
-  (Math.floor(ms / 1000 / BUCKET_SEC) * BUCKET_SEC) as UTCTimestamp;
+const bucketMs = (ms: number): number => Math.floor(ms / 1000 / BUCKET_SEC) * BUCKET_SEC * 1000;
 
 export function PriceChart() {
   const symbol = useStore((s) => s.selectedSymbol);
   const mode = useStore((s) => s.mode);
   const asOf = useStore((s) => s.asOf);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const chartRef = useRef<IChartApi | null>(null);
-  const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
-  const currentRef = useRef<CandlestickData | null>(null);
-
-  // Build the chart once per symbol; live ticks fold into the last candle (live mode only).
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const chart = createChart(el, { ...chartOptions(320), width: el.clientWidth });
-    chartRef.current = chart;
-    seriesRef.current = chart.addCandlestickSeries({
-      upColor: UP,
-      downColor: DOWN,
-      wickUpColor: UP,
-      wickDownColor: DOWN,
-      borderVisible: false,
-    });
-
-    const unsubscribe = store.subscribe(() => {
-      if (store.get().mode !== 'live') return; // frozen while time-travelling
-      const price = store.get().prices[symbol];
-      if (price === undefined) return;
-      const time = bucketOf(Date.now());
-      const cur = currentRef.current;
-      currentRef.current =
-        !cur || cur.time !== time
-          ? { time, open: price, high: price, low: price, close: price }
-          : {
-              ...cur,
-              high: Math.max(cur.high, price),
-              low: Math.min(cur.low, price),
-              close: price,
-            };
-      seriesRef.current?.update(currentRef.current);
-    });
-
-    const onResize = () => chart.applyOptions({ width: el.clientWidth });
-    window.addEventListener('resize', onResize);
-    return () => {
-      window.removeEventListener('resize', onResize);
-      unsubscribe();
-      chart.remove();
-      chartRef.current = null;
-      seriesRef.current = null;
-    };
-  }, [symbol]);
+  const [candles, setCandles] = useState<Candle[]>([]);
 
   // (Re)load history when the symbol or the as-of point changes — historical scrubs end at asOf.
   useEffect(() => {
     const to = mode === 'historical' && asOf ? asOf : undefined;
     getCandles(symbol, BUCKET_SEC, to)
-      .then((candles) => {
-        seriesRef.current?.setData(
-          candles.map((c) => ({
-            time: (c.t / 1000) as UTCTimestamp,
-            open: c.open,
-            high: c.high,
-            low: c.low,
-            close: c.close,
-          })),
-        );
-        currentRef.current = candles.length
-          ? ({ ...seriesRef.current?.dataByIndex(candles.length - 1) } as CandlestickData)
-          : null;
-        chartRef.current?.timeScale().fitContent();
-      })
+      .then(setCandles)
       .catch(() => {});
   }, [symbol, mode, asOf]);
+
+  // Live ticks fold into the last candle (live mode only).
+  useEffect(() => {
+    if (mode !== 'live') return;
+    return store.subscribe(() => {
+      const price = store.get().prices[symbol];
+      if (price === undefined) return;
+      const t = bucketMs(Date.now());
+      setCandles((prev) => {
+        const last = prev[prev.length - 1];
+        if (last && last.t === t) {
+          const merged: Candle = {
+            ...last,
+            high: Math.max(last.high, price),
+            low: Math.min(last.low, price),
+            close: price,
+          };
+          return [...prev.slice(0, -1), merged];
+        }
+        return [...prev, { t, open: price, high: price, low: price, close: price }];
+      });
+    });
+  }, [symbol, mode]);
+
+  const option = useMemo(() => candleOption(candles), [candles]);
 
   return (
     <Card>
@@ -96,7 +54,7 @@ export function PriceChart() {
         <CardTitle>{formatSymbol(symbol)} · price</CardTitle>
       </CardHeader>
       <CardContent>
-        <div ref={containerRef} />
+        <EChart option={option} height={320} />
       </CardContent>
     </Card>
   );
