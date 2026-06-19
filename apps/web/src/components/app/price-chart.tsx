@@ -20,7 +20,7 @@ export function PriceChart() {
     const to = mode === 'historical' && asOf ? asOf : undefined;
     getCandles(symbol, BUCKET_SEC, to)
       .then(setCandles)
-      .catch(() => {});
+      .catch(() => setCandles([]));
   }, [symbol, mode, asOf]);
 
   // Live ticks fold into the last candle (live mode only).

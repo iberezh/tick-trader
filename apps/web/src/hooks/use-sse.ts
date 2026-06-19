@@ -9,10 +9,13 @@ type StreamEvent = PriceEvent | TradeEvent;
 
 const handlers: Record<StreamEvent['type'], (event: StreamEvent) => void> = {
   price: (event) => {
-    const e = event as PriceEvent;
-    store.applyPrice(e.symbol, e.price);
+    if (event.type !== 'price') return;
+    store.applyPrice(event.symbol, event.price);
   },
-  trade: (event) => store.addTrade(event as TradeEvent),
+  trade: (event) => {
+    if (event.type !== 'trade') return;
+    store.addTrade(event);
+  },
 };
 
 export function useSse(): void {
@@ -21,8 +24,12 @@ export function useSse(): void {
     source.onopen = () => store.setConnected(true);
     source.onerror = () => store.setConnected(false);
     source.onmessage = (message) => {
-      const event = JSON.parse(message.data) as StreamEvent;
-      handlers[event.type]?.(event);
+      try {
+        const event = JSON.parse(message.data) as StreamEvent;
+        handlers[event.type]?.(event);
+      } catch {
+        // ignore malformed frames
+      }
     };
     return () => source.close();
   }, []);

@@ -16,7 +16,7 @@ export function EquityChart() {
     const to = mode === 'historical' && asOf ? asOf : undefined;
     getMetrics(60, to)
       .then(setPoints)
-      .catch(() => {});
+      .catch(() => setPoints([]));
   }, [tradeCount, mode, asOf]);
 
   const option = useMemo(() => equityOption(points), [points]);

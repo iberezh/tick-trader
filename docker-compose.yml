@@ -78,6 +78,8 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
+      # Inlined into the bundle at build time. localhost works because the trading/analytics
+      # ports are published to the host; override with the public origin for a real deploy.
       args:
         VITE_TRADING_URL: http://localhost:4001/api/v1
         VITE_ANALYTICS_URL: http://localhost:4003/api/v1
