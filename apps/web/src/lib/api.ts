@@ -38,6 +38,7 @@ async function getJson<T>(url: string): Promise<T> {
 }
 
 export const getEvents = () => getJson<{ trades: TradeExecuted[] }>(ENDPOINTS.events);
+export const getPortfolio = () => getJson<Portfolio>(ENDPOINTS.portfolio);
 export const getPortfolioAt = (iso: string) => getJson<Portfolio>(ENDPOINTS.portfolioAt(iso));
 export const getCandles = (symbol: string, bucket = 15, to?: number) =>
   getJson<Candle[]>(ENDPOINTS.prices(symbol, bucket, to));

@@ -4,7 +4,7 @@ import { echarts } from '@/lib/echarts';
 
 interface Props {
   option: ChartOption;
-  height: number;
+  height: number | string;
 }
 
 // Thin React wrapper: own the ECharts instance, resize with the container, dispose on unmount.
