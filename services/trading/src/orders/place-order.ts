@@ -22,6 +22,7 @@ export interface OrderContext {
   trades: TradeExecuted[];
   now: number;
   orderId: string;
+  accountId: string;
 }
 
 export interface OrderDecision {
@@ -53,6 +54,7 @@ export function placeOrder(
 
   const placed: OrderPlaced = {
     orderId: ctx.orderId,
+    accountId: ctx.accountId,
     symbol: input.symbol,
     side: input.side,
     qty: input.qty,
@@ -60,6 +62,7 @@ export function placeOrder(
   };
   const executed: TradeExecuted = {
     orderId: ctx.orderId,
+    accountId: ctx.accountId,
     symbol: input.symbol,
     side: input.side,
     qty: input.qty,

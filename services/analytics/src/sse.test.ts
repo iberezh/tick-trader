@@ -2,18 +2,21 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { SseHub } from './sse.js';
 
-test('SseHub broadcasts to all clients and stops after remove', () => {
+test('prices reach all clients; trades only reach the matching account', () => {
   const hub = new SseHub();
   const a: unknown[] = [];
   const b: unknown[] = [];
-  const clientA = (e: unknown) => a.push(e);
-  const clientB = (e: unknown) => b.push(e);
-  hub.add(clientA);
-  hub.add(clientB);
-  hub.broadcast({ type: 'price', symbol: 'BTCUSDT' });
+  const entryA = hub.add((e) => a.push(e), 'acc-a');
+  hub.add((e) => b.push(e), 'acc-b');
+
+  hub.broadcastPrice({ type: 'price', symbol: 'BTCUSDT' });
+  hub.broadcastToAccount('acc-a', { type: 'trade' });
   assert.equal(hub.size, 2);
-  hub.remove(clientB);
-  hub.broadcast({ type: 'trade' });
-  assert.equal(a.length, 2);
-  assert.equal(b.length, 1);
+  assert.equal(a.length, 2); // price + own trade
+  assert.equal(b.length, 1); // price only
+
+  hub.remove(entryA);
+  hub.broadcastPrice({ type: 'price' });
+  assert.equal(a.length, 2); // removed → no further events
+  assert.equal(b.length, 2);
 });

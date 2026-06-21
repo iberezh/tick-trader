@@ -1,23 +1,34 @@
+import fastifyCookie from '@fastify/cookie';
 import fastifyCors from '@fastify/cors';
+import fastifyJwt from '@fastify/jwt';
 import fastifySwagger from '@fastify/swagger';
 import fastifySwaggerUi from '@fastify/swagger-ui';
 import type { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import { fastify } from 'fastify';
+import { AUTH_COOKIE, authRoutes } from './auth.js';
 import { config } from './config.js';
+import { ensureSchema } from './db.js';
 import { createProducer, startPriceCache } from './kafka.js';
 import { orderRoutes } from './orders/routes.js';
 
 async function main(): Promise<void> {
+  await ensureSchema();
   const producer = await createProducer();
   const lastPrice: Record<string, number> = {};
   await startPriceCache(lastPrice);
 
   const app = fastify().withTypeProvider<TypeBoxTypeProvider>();
-  await app.register(fastifyCors, { origin: true });
+  await app.register(fastifyCors, { origin: true, credentials: true });
+  await app.register(fastifyCookie);
+  await app.register(fastifyJwt, {
+    secret: config.jwtSecret,
+    cookie: { cookieName: AUTH_COOKIE, signed: false },
+  });
   await app.register(fastifySwagger, {
     openapi: { info: { title: 'tick-trader · trading', version: '0.1.0' } },
   });
   await app.register(fastifySwaggerUi, { routePrefix: '/api/v1/docs' });
+  await app.register(authRoutes);
   await app.register(orderRoutes, { producer, lastPrice });
 
   await app.listen({ host: '0.0.0.0', port: config.port });

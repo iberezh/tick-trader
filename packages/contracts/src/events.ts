@@ -12,6 +12,7 @@ export type PriceTick = Static<typeof PriceTickSchema>;
 
 export const OrderPlacedSchema = Type.Object({
   orderId: Type.String(),
+  accountId: Type.String(),
   symbol: Type.String(),
   side: SideSchema,
   qty: Type.Number(),
@@ -21,6 +22,7 @@ export type OrderPlaced = Static<typeof OrderPlacedSchema>;
 
 export const TradeExecutedSchema = Type.Object({
   orderId: Type.String(),
+  accountId: Type.String(),
   symbol: Type.String(),
   side: SideSchema,
   qty: Type.Number(),

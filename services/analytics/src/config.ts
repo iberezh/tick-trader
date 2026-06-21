@@ -7,5 +7,7 @@ function required(name: string): string {
 export const config = {
   kafkaBrokers: (process.env.KAFKA_BROKERS ?? 'localhost:9094').split(','),
   databaseUrl: required('DATABASE_URL'),
+  // Must match the trading service's secret — analytics verifies the same auth cookie.
+  jwtSecret: process.env.JWT_SECRET ?? 'dev-only-insecure-change-me',
   port: Number(process.env.PORT ?? 4003),
 };
