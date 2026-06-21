@@ -5,6 +5,12 @@ const ANALYTICS = import.meta.env.VITE_ANALYTICS_URL ?? 'http://localhost:4003/a
 
 // Every REST path the client knows about lives here — single source of truth.
 export const ENDPOINTS = {
+  auth: {
+    register: `${TRADING}/auth/register`,
+    login: `${TRADING}/auth/login`,
+    logout: `${TRADING}/auth/logout`,
+    me: `${TRADING}/auth/me`,
+  },
   orders: `${TRADING}/orders`,
   portfolio: `${ANALYTICS}/portfolio`,
   portfolioAt: (iso: string) => `${ANALYTICS}/portfolio?at=${encodeURIComponent(iso)}`,
@@ -31,8 +37,9 @@ export interface EquityPoint {
   unrealizedPnl: number;
 }
 
+// credentials: 'include' so the httpOnly auth cookie rides along cross-origin (web → API ports).
 async function getJson<T>(url: string): Promise<T> {
-  const res = await fetch(url);
+  const res = await fetch(url, { credentials: 'include' });
   if (!res.ok) throw new Error(`GET ${url} -> ${res.status}`);
   return res.json() as Promise<T>;
 }
@@ -54,10 +61,44 @@ export interface OrderInput {
 export async function placeOrder(input: OrderInput): Promise<{ ok: boolean; message?: string }> {
   const res = await fetch(ENDPOINTS.orders, {
     method: 'POST',
+    credentials: 'include',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(input),
   });
   if (res.ok) return { ok: true };
   const body = (await res.json().catch(() => ({}))) as { reason?: string; message?: string };
   return { ok: false, message: body.reason ?? body.message ?? `error ${res.status}` };
+}
+
+export interface Account {
+  id: string;
+  email: string;
+}
+export interface Credentials {
+  email: string;
+  password: string;
+}
+export type AuthResult = { ok: true; account: Account } | { ok: false; message: string };
+
+async function postCredentials(url: string, creds: Credentials): Promise<AuthResult> {
+  const res = await fetch(url, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(creds),
+  });
+  const body = (await res.json().catch(() => ({}))) as Partial<Account> & { error?: string };
+  if (res.ok && body.id && body.email)
+    return { ok: true, account: { id: body.id, email: body.email } };
+  return { ok: false, message: body.error ?? `error ${res.status}` };
+}
+
+export const register = (creds: Credentials) => postCredentials(ENDPOINTS.auth.register, creds);
+export const login = (creds: Credentials) => postCredentials(ENDPOINTS.auth.login, creds);
+export const logout = () =>
+  fetch(ENDPOINTS.auth.logout, { method: 'POST', credentials: 'include' });
+
+export async function getMe(): Promise<Account | null> {
+  const res = await fetch(ENDPOINTS.auth.me, { credentials: 'include' });
+  return res.ok ? (res.json() as Promise<Account>) : null;
 }
