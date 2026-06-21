@@ -77,16 +77,19 @@ export function useManyCandles(symbols: string[]): Record<string, Candle[]> {
   return data;
 }
 
-export function usePortfolioSnapshot(): Portfolio | null {
-  const asOf = useAtomValue(asOfAtom);
+export function usePortfolioAt(ts: number | null): Portfolio | null {
   const key = useRefetchKey();
   const [data, setData] = useState<Portfolio | null>(null);
   // biome-ignore lint/correctness/useExhaustiveDependencies: key re-triggers the live refetch
   useEffect(() => {
-    const req = asOf ? getPortfolioAt(new Date(asOf).toISOString()) : getPortfolio();
+    const req = ts ? getPortfolioAt(new Date(ts).toISOString()) : getPortfolio();
     req.then(setData).catch(() => setData(null));
-  }, [asOf, key]);
+  }, [ts, key]);
   return data;
+}
+
+export function usePortfolioSnapshot(): Portfolio | null {
+  return usePortfolioAt(useAtomValue(asOfAtom));
 }
 
 export function useTradeLog(): TradeExecuted[] {

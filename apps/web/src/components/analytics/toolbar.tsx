@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import {
   asOfAtom,
+  compareAtom,
   DEFAULT_LAYOUT,
   DEFAULT_WIDGETS,
   layoutAtom,
@@ -28,6 +29,7 @@ export function AnalyticsToolbar() {
   const [asOf, setAsOf] = useAtom(asOfAtom);
   const [widgets, setWidgets] = useAtom(widgetsAtom);
   const [layout, setLayout] = useAtom(layoutAtom);
+  const [compare, setCompare] = useAtom(compareAtom);
   const [now] = useState(() => Date.now());
 
   const addWidget = (type: WidgetType): void => {
@@ -66,6 +68,15 @@ export function AnalyticsToolbar() {
           Live
         </Button>
       ) : null}
+      <label className="flex items-center gap-2 font-mono text-xs text-muted-foreground">
+        <input
+          type="checkbox"
+          checked={compare !== null}
+          onChange={(e) => setCompare(e.target.checked ? now - 1_800_000 : null)}
+          className="accent-[#f5b81a]"
+        />
+        compare
+      </label>
       <select
         value=""
         aria-label="Add widget"

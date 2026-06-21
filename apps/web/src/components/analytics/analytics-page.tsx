@@ -3,6 +3,7 @@ import { useAtom } from 'jotai';
 import { useMemo } from 'react';
 import { type Layout, Responsive, WidthProvider } from 'react-grid-layout/legacy';
 import { layoutAtom, WIDGET_TITLES, widgetsAtom } from '@/lib/analytics-atoms';
+import { CompareBar } from './compare-bar';
 import { renderWidget } from './registry';
 import { AnalyticsToolbar } from './toolbar';
 import { WidgetFrame } from './widget-frame';
@@ -23,6 +24,7 @@ export function AnalyticsPage() {
   return (
     <div className="mx-auto max-w-[1400px] p-4">
       <AnalyticsToolbar />
+      <CompareBar />
       <Grid
         className="mt-4"
         layouts={layouts}
