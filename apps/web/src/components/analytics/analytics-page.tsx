@@ -30,6 +30,7 @@ export function AnalyticsPage() {
         cols={{ lg: 4 }}
         rowHeight={48}
         margin={[16, 16]}
+        containerPadding={[0, 0]}
         measureBeforeMount
         isDraggable
         isResizable
