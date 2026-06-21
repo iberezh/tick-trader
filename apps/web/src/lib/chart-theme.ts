@@ -1,5 +1,37 @@
+import type { CandlestickSeriesOption, CustomSeriesOption } from 'echarts/charts';
 import type { Candle, EquityPoint } from './api';
 import type { ChartOption } from './echarts';
+
+// A prediction line is anchored to data coords ([candle index, price]) so it tracks
+// the chart as candles stream in or the view zooms.
+export interface DrawSegment {
+  id: string;
+  color: string;
+  points: [number, number][];
+}
+
+// Renders segments through a custom series — api.coord() re-projects to pixels on every
+// redraw, which is what keeps the lines glued to the data rather than the screen.
+export function drawOverlay(segments: DrawSegment[]): CustomSeriesOption {
+  return {
+    type: 'custom',
+    silent: true,
+    z: 6,
+    animation: false,
+    data: segments.map((s) => s.points),
+    renderItem: (params, api) => {
+      const seg = segments[params.dataIndex];
+      if (!seg) return { type: 'group', children: [] };
+      const points = seg.points.map((p) => api.coord(p));
+      return {
+        type: 'polyline',
+        shape: { points },
+        style: { stroke: seg.color, lineWidth: 1.5, fill: 'none' },
+        silent: true,
+      };
+    },
+  };
+}
 
 // P1 "Phosphor" palette — green doubles as the P&L "up" colour.
 export const UP = '#00e08f';
@@ -41,21 +73,25 @@ const tip = (pointer: 'cross' | 'line') => ({
   textStyle: { color: '#e9f2ec', fontFamily: MONO, fontSize: 11 },
 });
 
-export function candleOption(candles: Candle[]): ChartOption {
+export function candleOption(
+  candles: Candle[],
+  overlay?: CustomSeriesOption,
+  lockZoom = false,
+): ChartOption {
+  const candlestick: CandlestickSeriesOption = {
+    type: 'candlestick',
+    data: candles.map((c) => [c.open, c.close, c.low, c.high]),
+    itemStyle: { color: UP, color0: DOWN, borderColor: UP, borderColor0: DOWN },
+  };
   return {
     animation: false,
     grid: GRID,
     tooltip: tip('cross'),
     xAxis: xAxis(candles.map((c) => fmtTime(c.t))),
     yAxis,
-    dataZoom: [{ type: 'inside' }],
-    series: [
-      {
-        type: 'candlestick',
-        data: candles.map((c) => [c.open, c.close, c.low, c.high]),
-        itemStyle: { color: UP, color0: DOWN, borderColor: UP, borderColor0: DOWN },
-      },
-    ],
+    // Drag pans by default; while drawing we lock it so the drag draws a line instead.
+    dataZoom: [{ type: 'inside', disabled: lockZoom }],
+    series: overlay ? [candlestick, overlay] : [candlestick],
   };
 }
 

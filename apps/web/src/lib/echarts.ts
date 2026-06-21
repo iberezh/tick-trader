@@ -1,5 +1,10 @@
-import type { BarSeriesOption, CandlestickSeriesOption, LineSeriesOption } from 'echarts/charts';
-import { BarChart, CandlestickChart, LineChart } from 'echarts/charts';
+import type {
+  BarSeriesOption,
+  CandlestickSeriesOption,
+  CustomSeriesOption,
+  LineSeriesOption,
+} from 'echarts/charts';
+import { BarChart, CandlestickChart, CustomChart, LineChart } from 'echarts/charts';
 import type {
   DataZoomComponentOption,
   GraphicComponentOption,
@@ -23,6 +28,7 @@ echarts.use([
   CandlestickChart,
   LineChart,
   BarChart,
+  CustomChart,
   GridComponent,
   TooltipComponent,
   DataZoomComponent,
@@ -35,6 +41,7 @@ export type ChartOption = ComposeOption<
   | CandlestickSeriesOption
   | LineSeriesOption
   | BarSeriesOption
+  | CustomSeriesOption
   | GridComponentOption
   | TooltipComponentOption
   | DataZoomComponentOption
