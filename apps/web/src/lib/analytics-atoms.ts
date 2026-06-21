@@ -54,3 +54,6 @@ export const layoutAtom = atomWithStorage<Layout>('tt.analytics.layout.3', DEFAU
 // Time-travel: T (null = live/now) and an optional compare marker T2.
 export const asOfAtom = atom<number | null>(null);
 export const compareAtom = atom<number | null>(null);
+
+// The time-travel window the toolbar/compare sliders scrub over (last hour).
+export const TIME_WINDOW_MS = 3_600_000;

@@ -17,8 +17,8 @@ export function AnalyticsPage() {
   const layouts = useMemo(() => ({ lg: layout }), [layout]);
 
   const removeWidget = (id: string): void => {
-    setWidgets(widgets.filter((w) => w.id !== id));
-    setLayout(layout.filter((l) => l.i !== id));
+    setWidgets((prev) => prev.filter((w) => w.id !== id));
+    setLayout((prev) => prev.filter((l) => l.i !== id));
   };
 
   return (

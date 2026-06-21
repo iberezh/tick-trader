@@ -2,10 +2,8 @@ import { useAtom, useAtomValue } from 'jotai';
 import { useState } from 'react';
 import { Slider } from '@/components/ui/slider';
 import { usePortfolioAt } from '@/hooks/use-analytics-data';
-import { asOfAtom, compareAtom } from '@/lib/analytics-atoms';
+import { asOfAtom, compareAtom, TIME_WINDOW_MS } from '@/lib/analytics-atoms';
 import { money } from '@/lib/format';
-
-const WINDOW_MS = 3_600_000;
 
 function Delta({ label, a, b }: { label: string; a: number; b: number }) {
   const d = a - b;
@@ -36,7 +34,7 @@ export function CompareBar() {
       <span className="font-mono text-xs text-[#f5b81a]">⇄ compare · T2</span>
       <div className="flex min-w-[200px] flex-1 items-center gap-3">
         <Slider
-          min={now - WINDOW_MS}
+          min={now - TIME_WINDOW_MS}
           max={now}
           step={1000}
           value={[compare]}

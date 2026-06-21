@@ -33,9 +33,17 @@ export function useMetrics(): EquityPoint[] {
   const [data, setData] = useState<EquityPoint[]>([]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: key re-triggers the live refetch
   useEffect(() => {
+    let alive = true;
     getMetrics(60, asOf ?? undefined)
-      .then(setData)
-      .catch(() => setData([]));
+      .then((d) => {
+        if (alive) setData(d);
+      })
+      .catch(() => {
+        if (alive) setData([]);
+      });
+    return () => {
+      alive = false;
+    };
   }, [asOf, key]);
   return data;
 }
@@ -46,9 +54,17 @@ export function useCandles(symbol: string, bucket = 15): Candle[] {
   const [data, setData] = useState<Candle[]>([]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: key re-triggers the live refetch
   useEffect(() => {
+    let alive = true;
     getCandles(symbol, bucket, asOf ?? undefined)
-      .then(setData)
-      .catch(() => setData([]));
+      .then((d) => {
+        if (alive) setData(d);
+      })
+      .catch(() => {
+        if (alive) setData([]);
+      });
+    return () => {
+      alive = false;
+    };
   }, [symbol, bucket, asOf, key]);
   return data;
 }
@@ -82,8 +98,18 @@ export function usePortfolioAt(ts: number | null): Portfolio | null {
   const [data, setData] = useState<Portfolio | null>(null);
   // biome-ignore lint/correctness/useExhaustiveDependencies: key re-triggers the live refetch
   useEffect(() => {
+    let alive = true;
     const req = ts ? getPortfolioAt(new Date(ts).toISOString()) : getPortfolio();
-    req.then(setData).catch(() => setData(null));
+    req
+      .then((d) => {
+        if (alive) setData(d);
+      })
+      .catch(() => {
+        if (alive) setData(null);
+      });
+    return () => {
+      alive = false;
+    };
   }, [ts, key]);
   return data;
 }
@@ -96,11 +122,19 @@ export function useTradeLog(): TradeExecuted[] {
   const asOf = useAtomValue(asOfAtom);
   const key = useRefetchKey();
   const [data, setData] = useState<TradeExecuted[]>([]);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: key re-triggers the live refetch; asOf filters in the return
+  // biome-ignore lint/correctness/useExhaustiveDependencies: fetched once per live tick; asOf filters client-side, so trades arriving during time-travel stay hidden until live resumes
   useEffect(() => {
+    let alive = true;
     getEvents()
-      .then((r) => setData(r.trades))
-      .catch(() => setData([]));
+      .then((r) => {
+        if (alive) setData(r.trades);
+      })
+      .catch(() => {
+        if (alive) setData([]);
+      });
+    return () => {
+      alive = false;
+    };
   }, [key]);
-  return asOf ? data.filter((t) => t.executedAt <= asOf) : data;
+  return asOf !== null ? data.filter((t) => t.executedAt <= asOf) : data;
 }

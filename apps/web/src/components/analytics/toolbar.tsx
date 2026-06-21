@@ -1,4 +1,4 @@
-import { useAtom } from 'jotai';
+import { useAtom, useSetAtom } from 'jotai';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -8,13 +8,13 @@ import {
   DEFAULT_LAYOUT,
   DEFAULT_WIDGETS,
   layoutAtom,
+  TIME_WINDOW_MS,
   WIDGET_TITLES,
   type WidgetConfig,
   type WidgetType,
   widgetsAtom,
 } from '@/lib/analytics-atoms';
 
-const WINDOW_MS = 3_600_000;
 const TYPES: WidgetType[] = [
   'symbols',
   'price',
@@ -27,17 +27,19 @@ const TYPES: WidgetType[] = [
 
 export function AnalyticsToolbar() {
   const [asOf, setAsOf] = useAtom(asOfAtom);
-  const [widgets, setWidgets] = useAtom(widgetsAtom);
-  const [layout, setLayout] = useAtom(layoutAtom);
   const [compare, setCompare] = useAtom(compareAtom);
+  const setWidgets = useSetAtom(widgetsAtom);
+  const setLayout = useSetAtom(layoutAtom);
   const [now] = useState(() => Date.now());
 
   const addWidget = (type: WidgetType): void => {
     const id = `${type}-${Date.now()}`;
-    const y = layout.reduce((max, l) => Math.max(max, l.y + l.h), 0);
     const config: WidgetConfig = type === 'price' ? { id, type, symbol: 'BTCUSDT' } : { id, type };
-    setWidgets([...widgets, config]);
-    setLayout([...layout, { i: id, x: 0, y, w: 2, h: 6 }]);
+    setWidgets((prev) => [...prev, config]);
+    setLayout((prev) => [
+      ...prev,
+      { i: id, x: 0, y: prev.reduce((max, l) => Math.max(max, l.y + l.h), 0), w: 2, h: 6 },
+    ]);
   };
   const reset = (): void => {
     setWidgets(DEFAULT_WIDGETS);
@@ -50,7 +52,7 @@ export function AnalyticsToolbar() {
       <span className="font-mono text-xs text-muted-foreground">⏮ time-travel</span>
       <div className="flex min-w-[220px] flex-1 items-center gap-3">
         <Slider
-          min={now - WINDOW_MS}
+          min={now - TIME_WINDOW_MS}
           max={now}
           step={1000}
           value={[asOf ?? now]}
@@ -60,7 +62,7 @@ export function AnalyticsToolbar() {
           }}
         />
         <span className="w-20 text-right font-mono text-xs text-up">
-          {asOf ? new Date(asOf).toLocaleTimeString() : 'now'}
+          {asOf !== null ? new Date(asOf).toLocaleTimeString() : 'now'}
         </span>
       </div>
       {asOf !== null ? (
