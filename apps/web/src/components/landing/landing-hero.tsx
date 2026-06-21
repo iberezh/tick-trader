@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import type { Candle, EquityPoint } from '@/lib/api';
 import { equityOption } from '@/lib/chart-theme';
 import { EChart } from '../app/echart';
+import { SIM_INITIAL_EQUITY, SIM_POSITION_MULT } from './use-sim';
 
 const fmt = (n: number): string =>
   n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -19,15 +20,16 @@ export function LandingHero({ candles }: { candles: Candle[] }) {
     const base = recent[0]?.close ?? 0;
     return recent.map((c) => ({
       t: c.t,
-      equity: 100000 + (c.close - base) * 2.4,
+      equity: SIM_INITIAL_EQUITY + (c.close - base) * SIM_POSITION_MULT,
       cash: 0,
       realizedPnl: 0,
       unrealizedPnl: 0,
     }));
   }, [candles]);
   const option = useMemo(() => equityOption(points), [points]);
-  const eq = points[points.length - 1]?.equity ?? 100000;
-  const pct = ((eq - 100000) / 100000) * 100;
+  const eq = points[points.length - 1]?.equity ?? SIM_INITIAL_EQUITY;
+  const pnl = eq - SIM_INITIAL_EQUITY;
+  const pct = (pnl / SIM_INITIAL_EQUITY) * 100;
   const up = pct >= 0;
 
   return (
@@ -104,7 +106,10 @@ export function LandingHero({ candles }: { candles: Candle[] }) {
             <span className="text-[10px] tracking-wide text-[#54605a]">CASH · OPEN P&amp;L</span>
             <span>
               <span className="text-base font-bold tabular-nums">38,540.00</span>
-              <span className="ml-2 text-xs text-[#00e08f]">▲ +$4,820.55</span>
+              <span className={`ml-2 text-xs ${pnl >= 0 ? 'text-[#00e08f]' : 'text-[#ff5247]'}`}>
+                {pnl >= 0 ? '▲ +$' : '▼ −$'}
+                {fmt(Math.abs(pnl))}
+              </span>
             </span>
           </div>
         </div>

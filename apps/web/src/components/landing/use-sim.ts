@@ -2,6 +2,10 @@ import { useEffect, useState } from 'react';
 import type { Candle } from '@/lib/api';
 
 export const SIM_SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT'];
+export const SIM_INITIAL_EQUITY = 100_000;
+export const SIM_POSITION_MULT = 2.4;
+export const TF_GROUP: Record<string, number> = { '1m': 1, '5m': 3, '15m': 6, '1h': 12 };
+
 const META: Record<string, { p: number; vol: number }> = {
   BTCUSDT: { p: 64000, vol: 150 },
   ETHUSDT: { p: 3402, vol: 11 },
@@ -35,6 +39,26 @@ function seed(sym: string): Candle[] {
   return out;
 }
 
+// Roll up 1-minute candles into a higher timeframe (group K candles into one OHLC).
+export function aggregate(candles: Candle[], group: number): Candle[] {
+  if (group <= 1) return candles;
+  const out: Candle[] = [];
+  for (let i = 0; i < candles.length; i += group) {
+    const slice = candles.slice(i, i + group);
+    const first = slice[0];
+    const last = slice[slice.length - 1];
+    if (!first || !last) continue;
+    out.push({
+      t: last.t,
+      open: first.open,
+      close: last.close,
+      high: Math.max(...slice.map((c) => c.high)),
+      low: Math.min(...slice.map((c) => c.low)),
+    });
+  }
+  return out;
+}
+
 type Series = Record<string, Candle[]>;
 
 // Self-contained random-walk candles so the marketing landing looks alive with no backend.
@@ -43,7 +67,8 @@ export function useSimSeries(): Series {
     Object.fromEntries(SIM_SYMBOLS.map((s) => [s, seed(s)])),
   );
   useEffect(() => {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    if (mq.matches) return;
     const id = window.setInterval(() => {
       setData((prev) => {
         const next: Series = {};
@@ -56,7 +81,14 @@ export function useSimSeries(): Series {
         return next;
       });
     }, 1300);
-    return () => window.clearInterval(id);
+    const stopIfReduced = () => {
+      if (mq.matches) window.clearInterval(id);
+    };
+    mq.addEventListener('change', stopIfReduced);
+    return () => {
+      window.clearInterval(id);
+      mq.removeEventListener('change', stopIfReduced);
+    };
   }, []);
   return data;
 }

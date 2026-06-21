@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import type { Candle, EquityPoint } from '@/lib/api';
 import { candleOption, equityOption } from '@/lib/chart-theme';
 import { EChart } from '../app/echart';
-import { SIM_SYMBOLS } from './use-sim';
+import { aggregate, SIM_INITIAL_EQUITY, SIM_POSITION_MULT, SIM_SYMBOLS, TF_GROUP } from './use-sim';
 
 const fmt = (n: number): string =>
   n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -12,15 +12,15 @@ export function ChartsShowcase({ series }: { series: Record<string, Candle[]> })
   const [sym, setSym] = useState('BTCUSDT');
   const [tf, setTf] = useState('1m');
   const [frac, setFrac] = useState(100);
-  const all = series[sym] ?? [];
+  const all = aggregate(series[sym] ?? [], TF_GROUP[tf] ?? 1);
   const candles =
-    frac >= 100 ? all : all.slice(0, Math.max(20, Math.round((all.length * frac) / 100)));
+    frac >= 100 ? all : all.slice(0, Math.max(4, Math.round((all.length * frac) / 100)));
   const option = useMemo(() => candleOption(candles), [candles]);
   const eqOption = useMemo(() => {
     const base = candles[0]?.close ?? 0;
     const points: EquityPoint[] = candles.map((c) => ({
       t: c.t,
-      equity: 100000 + (c.close - base) * 2.4,
+      equity: SIM_INITIAL_EQUITY + (c.close - base) * SIM_POSITION_MULT,
       cash: 0,
       realizedPnl: 0,
       unrealizedPnl: 0,
@@ -53,6 +53,7 @@ export function ChartsShowcase({ series }: { series: Record<string, Candle[]> })
               <button
                 key={s}
                 type="button"
+                aria-pressed={s === sym}
                 onClick={() => setSym(s)}
                 className={`rounded-lg border px-3 py-1.5 font-mono text-xs ${
                   s === sym
@@ -72,6 +73,7 @@ export function ChartsShowcase({ series }: { series: Record<string, Candle[]> })
                 <button
                   key={t}
                   type="button"
+                  aria-pressed={t === tf}
                   onClick={() => setTf(t)}
                   className={`rounded-md border px-2 py-1 font-mono text-[11px] ${
                     t === tf
@@ -107,6 +109,7 @@ export function ChartsShowcase({ series }: { series: Record<string, Candle[]> })
             onChange={(e) => setFrac(Number(e.target.value))}
             className="flex-1 accent-[#00e08f]"
             aria-label="Time travel"
+            aria-valuetext={frac >= 100 ? 'now' : `${Math.round((100 - frac) * 2.4)} minutes ago`}
           />
           <span className="w-24 text-right font-mono text-xs text-[#00e08f]">
             {frac >= 100 ? 'now' : `−${Math.round((100 - frac) * 2.4)}m`}
