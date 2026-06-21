@@ -7,8 +7,9 @@ import { renderWidget } from './registry';
 import { AnalyticsToolbar } from './toolbar';
 import { WidgetFrame } from './widget-frame';
 
-const ResponsiveGrid = WidthProvider(Responsive);
+const Grid = WidthProvider(Responsive);
 
+// A single `lg` breakpoint at width 0 keeps the board a fixed 4-column grid at any width.
 export function AnalyticsPage() {
   const [layout, setLayout] = useAtom(layoutAtom);
   const [widgets, setWidgets] = useAtom(widgetsAtom);
@@ -22,15 +23,22 @@ export function AnalyticsPage() {
   return (
     <div className="mx-auto max-w-[1400px] p-4">
       <AnalyticsToolbar />
-      <ResponsiveGrid
+      <Grid
         className="mt-4"
         layouts={layouts}
-        breakpoints={{ lg: 1100, md: 760, sm: 0 }}
-        cols={{ lg: 4, md: 2, sm: 1 }}
+        breakpoints={{ lg: 0 }}
+        cols={{ lg: 4 }}
         rowHeight={48}
         margin={[16, 16]}
+        measureBeforeMount
+        isDraggable
+        isResizable
         draggableHandle=".drag-handle"
-        onLayoutChange={(current: Layout) => setLayout(current)}
+        resizeHandles={['se']}
+        onLayoutChange={(current: Layout) => {
+          // Ignore degenerate/partial layouts so a bad frame can't be persisted.
+          if (current.length > 0 && current.every((l) => l.w > 0 && l.h > 0)) setLayout(current);
+        }}
       >
         {widgets.map((w) => (
           <div key={w.id}>
@@ -39,7 +47,7 @@ export function AnalyticsPage() {
             </WidgetFrame>
           </div>
         ))}
-      </ResponsiveGrid>
+      </Grid>
     </div>
   );
 }

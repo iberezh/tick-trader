@@ -49,7 +49,7 @@ export const DEFAULT_LAYOUT: Layout = [
 
 // Persisted so a custom board survives reload (per-browser, like a drawing tool).
 export const widgetsAtom = atomWithStorage<WidgetConfig[]>('tt.analytics.widgets', DEFAULT_WIDGETS);
-export const layoutAtom = atomWithStorage<Layout>('tt.analytics.layout', DEFAULT_LAYOUT);
+export const layoutAtom = atomWithStorage<Layout>('tt.analytics.layout.3', DEFAULT_LAYOUT);
 
 // Time-travel: T (null = live/now) and an optional compare marker T2.
 export const asOfAtom = atom<number | null>(null);
