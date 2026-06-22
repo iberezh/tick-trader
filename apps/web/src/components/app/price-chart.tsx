@@ -7,8 +7,11 @@ import { candleOption, drawOverlay } from '@/lib/chart-theme';
 import type { EChartInstance } from '@/lib/echarts';
 import { formatSymbol } from '@/lib/format';
 import { store, useStore } from '@/lib/store';
+import { ChartSkeleton } from './chart-skeleton';
 import { DrawToolbar } from './draw-toolbar';
 import { EChart } from './echart';
+
+const CHART_HEIGHT = 320;
 
 const BUCKET_SEC = 15;
 const bucketMs = (ms: number): number => Math.floor(ms / 1000 / BUCKET_SEC) * BUCKET_SEC * 1000;
@@ -18,6 +21,7 @@ export function PriceChart() {
   const mode = useStore((s) => s.mode);
   const asOf = useStore((s) => s.asOf);
   const [candles, setCandles] = useState<Candle[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [chart, setChart] = useState<EChartInstance | null>(null);
   const onReady = useCallback((c: EChartInstance | null) => setChart(c), []);
 
@@ -27,10 +31,15 @@ export function PriceChart() {
 
   // (Re)load history when the symbol or the as-of point changes — historical scrubs end at asOf.
   useEffect(() => {
+    let alive = true;
     const to = mode === 'historical' && asOf ? asOf : undefined;
     getCandles(symbol, BUCKET_SEC, to)
-      .then(setCandles)
-      .catch(() => setCandles([]));
+      .then((c) => alive && setCandles(c))
+      .catch(() => alive && setCandles([]))
+      .finally(() => alive && setLoaded(true));
+    return () => {
+      alive = false;
+    };
   }, [symbol, mode, asOf]);
 
   // Live ticks fold into the last candle (live mode only).
@@ -80,7 +89,11 @@ export function PriceChart() {
         </div>
       </CardHeader>
       <CardContent>
-        <EChart option={option} height={320} onReady={onReady} />
+        {loaded ? (
+          <EChart option={option} height={CHART_HEIGHT} onReady={onReady} />
+        ) : (
+          <ChartSkeleton height={CHART_HEIGHT} />
+        )}
       </CardContent>
     </Card>
   );
