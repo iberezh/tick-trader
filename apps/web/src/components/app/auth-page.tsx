@@ -8,19 +8,26 @@ import { useAuth } from '@/hooks/use-auth';
 
 type Mode = 'login' | 'register';
 
-export function AuthPage() {
+// /login and /signup render the same form in different modes; the toggle swaps routes so the
+// URL always reflects which one you're on.
+export function AuthPage({ mode }: { mode: Mode }) {
   const { status, login, register } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const from = (location.state as { from?: string } | null)?.from ?? '/app';
 
-  const [mode, setMode] = useState<Mode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   if (status === 'authed') return <Navigate to={from} replace />;
+
+  // Same component instance backs both routes, so clear a stale error as we switch.
+  const toggle = (): void => {
+    setError(null);
+    navigate(mode === 'login' ? '/signup' : '/login', { state: { from } });
+  };
 
   const submit = async (e: FormEvent): Promise<void> => {
     e.preventDefault();
@@ -36,8 +43,8 @@ export function AuthPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="w-full max-w-sm rounded-lg border bg-card p-6">
+    <div className="flex min-h-screen items-center justify-center px-4 bg-[radial-gradient(circle_at_50%_28%,#141b22,#06080a_72%)]">
+      <div className="w-full max-w-sm rounded-lg border bg-card/90 p-6 shadow-2xl backdrop-blur-sm">
         <div className="mb-1 flex items-center gap-2 font-semibold tracking-tight">
           <LogoMark size={20} className="text-up" />
           tick-trader
@@ -80,10 +87,7 @@ export function AuthPage() {
         <button
           type="button"
           className="mt-4 w-full font-mono text-xs text-muted-foreground hover:text-foreground"
-          onClick={() => {
-            setMode(mode === 'login' ? 'register' : 'login');
-            setError(null);
-          }}
+          onClick={toggle}
         >
           {mode === 'login'
             ? '// new here? create an account'
