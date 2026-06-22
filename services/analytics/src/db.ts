@@ -11,6 +11,7 @@ interface PriceTickRow {
 }
 interface TradeLogRow {
   seq: Generated<number>;
+  account_id: string;
   order_id: string;
   symbol: string;
   side: string;
@@ -27,8 +28,7 @@ const db = new Kysely<DB>({
   dialect: new PostgresDialect({ pool: new Pool({ connectionString: config.databaseUrl }) }),
 }).withSchema('analytics');
 
-// Service owns its read models; create them idempotently on boot (schema 'analytics'
-// already exists from the postgres init script).
+// Service owns its read models; create them idempotently on boot.
 export async function ensureSchema(): Promise<void> {
   await sql`CREATE TABLE IF NOT EXISTS analytics.price_ticks (
     seq BIGSERIAL PRIMARY KEY, symbol TEXT NOT NULL, price DOUBLE PRECISION NOT NULL, ts TIMESTAMPTZ NOT NULL
@@ -37,10 +37,14 @@ export async function ensureSchema(): Promise<void> {
     db,
   );
   await sql`CREATE TABLE IF NOT EXISTS analytics.trade_log (
-    seq BIGSERIAL PRIMARY KEY, order_id TEXT NOT NULL, symbol TEXT NOT NULL, side TEXT NOT NULL,
-    qty DOUBLE PRECISION NOT NULL, price DOUBLE PRECISION NOT NULL, executed_at TIMESTAMPTZ NOT NULL
+    seq BIGSERIAL PRIMARY KEY, account_id TEXT NOT NULL DEFAULT '', order_id TEXT NOT NULL,
+    symbol TEXT NOT NULL, side TEXT NOT NULL, qty DOUBLE PRECISION NOT NULL,
+    price DOUBLE PRECISION NOT NULL, executed_at TIMESTAMPTZ NOT NULL
   )`.execute(db);
-  await sql`CREATE INDEX IF NOT EXISTS trade_log_executed_at_idx ON analytics.trade_log (executed_at)`.execute(
+  await sql`ALTER TABLE analytics.trade_log ADD COLUMN IF NOT EXISTS account_id TEXT NOT NULL DEFAULT ''`.execute(
+    db,
+  );
+  await sql`CREATE INDEX IF NOT EXISTS trade_log_account_idx ON analytics.trade_log (account_id, executed_at)`.execute(
     db,
   );
 }
@@ -60,6 +64,7 @@ export async function insertTrade(t: TradeExecuted): Promise<void> {
   await db
     .insertInto('trade_log')
     .values({
+      account_id: t.accountId,
       order_id: t.orderId,
       symbol: t.symbol,
       side: t.side,
@@ -70,17 +75,19 @@ export async function insertTrade(t: TradeExecuted): Promise<void> {
     .execute();
 }
 
-export async function listTradesUpTo(atMs?: number): Promise<TradeExecuted[]> {
+export async function listTradesUpTo(accountId: string, atMs?: number): Promise<TradeExecuted[]> {
   let query = db
     .selectFrom('trade_log')
-    .select(['order_id', 'symbol', 'side', 'qty', 'price', 'executed_at'])
+    .select(['account_id', 'order_id', 'symbol', 'side', 'qty', 'price', 'executed_at'])
+    .where('account_id', '=', accountId)
     .orderBy('seq');
   if (atMs !== undefined) query = query.where('executed_at', '<=', new Date(atMs));
   const rows = await query.execute();
   return rows.map((r) => ({
+    accountId: r.account_id,
     orderId: r.order_id,
     symbol: r.symbol,
-    side: r.side as Side, // trade_log only ever stores 'buy' | 'sell'
+    side: r.side as Side,
     qty: r.qty,
     price: r.price,
     executedAt: r.executed_at.getTime(),
@@ -128,3 +135,5 @@ export async function ticksInRange(
     .execute();
   return rows.map((r) => ({ price: r.price, ts: r.ts.getTime() }));
 }
+
+export { db };

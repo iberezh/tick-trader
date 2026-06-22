@@ -24,7 +24,15 @@ test('toCandles guards against a non-positive bucket', () => {
 
 test('sampleEquityCurve marks the portfolio to market at each bucket', () => {
   const trades: TradeExecuted[] = [
-    { orderId: 'o', symbol: 'BTCUSDT', side: 'buy', qty: 2, price: 100, executedAt: 500 },
+    {
+      orderId: 'o',
+      accountId: 'acc',
+      symbol: 'BTCUSDT',
+      side: 'buy',
+      qty: 2,
+      price: 100,
+      executedAt: 500,
+    },
   ];
   const ticks = [
     { symbol: 'BTCUSDT', price: 100, ts: 0 },

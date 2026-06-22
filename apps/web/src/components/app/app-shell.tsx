@@ -1,5 +1,6 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { LogoMark } from '@/components/logo-mark';
+import { useAuth } from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
 
 const linkClass = ({ isActive }: { isActive: boolean }): string =>
@@ -8,8 +9,28 @@ const linkClass = ({ isActive }: { isActive: boolean }): string =>
     isActive ? 'text-up' : 'text-muted-foreground hover:text-foreground',
   );
 
-// Chrome for the in-app routes (/app, /app/analytics); the landing at / renders standalone.
+// Chrome + auth guard for the in-app routes (/app, /app/analytics); the landing at / is public.
 export function AppShell() {
+  const { account, status, logout } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  if (status === 'loading') {
+    return (
+      <div className="flex min-h-screen items-center justify-center font-mono text-sm text-muted-foreground">
+        $ authenticating…
+      </div>
+    );
+  }
+  if (status === 'anon') {
+    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
+  }
+
+  const signOut = async (): Promise<void> => {
+    await logout();
+    navigate('/login', { replace: true });
+  };
+
   return (
     <div className="min-h-screen">
       <nav className="flex items-center gap-5 border-b bg-card px-4 py-2">
@@ -23,6 +44,12 @@ export function AppShell() {
         <NavLink to="/app/analytics" className={linkClass}>
           analytics
         </NavLink>
+        <div className="ml-auto flex items-center gap-3 font-mono text-xs text-muted-foreground">
+          <span className="hidden sm:inline">{account?.email}</span>
+          <button type="button" onClick={() => void signOut()} className="hover:text-down">
+            logout
+          </button>
+        </div>
       </nav>
       <Outlet />
     </div>

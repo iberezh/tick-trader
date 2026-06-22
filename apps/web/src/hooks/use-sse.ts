@@ -20,7 +20,8 @@ const handlers: Record<StreamEvent['type'], (event: StreamEvent) => void> = {
 
 export function useSse(): void {
   useEffect(() => {
-    const source = new EventSource(ENDPOINTS.stream);
+    // withCredentials so the SSE stream carries the auth cookie and is scoped to this account.
+    const source = new EventSource(ENDPOINTS.stream, { withCredentials: true });
     source.onopen = () => store.setConnected(true);
     source.onerror = () => store.setConnected(false);
     source.onmessage = (message) => {

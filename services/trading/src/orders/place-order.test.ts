@@ -8,6 +8,7 @@ const ctx = (over: Partial<OrderContext> = {}): OrderContext => ({
   trades: [],
   now: 1_000,
   orderId: 'order-1',
+  accountId: 'acc',
   ...over,
 });
 
@@ -42,7 +43,15 @@ test('selling more than held is rejected', () => {
 
 test('selling within holdings is allowed', () => {
   const trades: TradeExecuted[] = [
-    { orderId: 'o0', symbol: 'BTCUSDT', side: 'buy', qty: 3, price: 90, executedAt: 1 },
+    {
+      orderId: 'o0',
+      accountId: 'acc',
+      symbol: 'BTCUSDT',
+      side: 'buy',
+      qty: 3,
+      price: 90,
+      executedAt: 1,
+    },
   ];
   const result = placeOrder({ symbol: 'BTCUSDT', side: 'sell', qty: 2 }, ctx({ trades }));
   assert.equal(result.ok, true);

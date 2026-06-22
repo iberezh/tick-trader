@@ -1,9 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useAuth } from '@/hooks/use-auth';
+import { useDrawing } from '@/hooks/use-drawing';
 import { type Candle, getCandles } from '@/lib/api';
-import { candleOption } from '@/lib/chart-theme';
+import { candleOption, drawOverlay } from '@/lib/chart-theme';
+import type { EChartInstance } from '@/lib/echarts';
 import { formatSymbol } from '@/lib/format';
 import { store, useStore } from '@/lib/store';
+import { DrawToolbar } from './draw-toolbar';
 import { EChart } from './echart';
 
 const BUCKET_SEC = 15;
@@ -14,6 +18,12 @@ export function PriceChart() {
   const mode = useStore((s) => s.mode);
   const asOf = useStore((s) => s.asOf);
   const [candles, setCandles] = useState<Candle[]>([]);
+  const [chart, setChart] = useState<EChartInstance | null>(null);
+  const onReady = useCallback((c: EChartInstance | null) => setChart(c), []);
+
+  const { account } = useAuth();
+  const storageKey = account ? `tt:draw:${account.id}:${symbol}` : null;
+  const draw = useDrawing(chart, storageKey);
 
   // (Re)load history when the symbol or the as-of point changes — historical scrubs end at asOf.
   useEffect(() => {
@@ -46,15 +56,31 @@ export function PriceChart() {
     });
   }, [symbol, mode]);
 
-  const option = useMemo(() => candleOption(candles), [candles]);
+  const option = useMemo(() => {
+    const lines = draw.preview ? [...draw.segments, draw.preview] : draw.segments;
+    const overlay = lines.length ? drawOverlay(lines) : undefined;
+    return candleOption(candles, overlay, draw.enabled);
+  }, [candles, draw.segments, draw.preview, draw.enabled]);
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{formatSymbol(symbol)} · price</CardTitle>
+        <div className="flex items-center justify-between gap-3">
+          <CardTitle>{formatSymbol(symbol)} · price</CardTitle>
+          <DrawToolbar
+            enabled={draw.enabled}
+            color={draw.color}
+            palette={draw.palette}
+            hasLines={draw.segments.length > 0}
+            toggle={draw.toggle}
+            setColor={draw.setColor}
+            undo={draw.undo}
+            clear={draw.clear}
+          />
+        </div>
       </CardHeader>
       <CardContent>
-        <EChart option={option} height={320} />
+        <EChart option={option} height={320} onReady={onReady} />
       </CardContent>
     </Card>
   );

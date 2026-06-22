@@ -5,6 +5,7 @@ import { buildPortfolio, equity, foldAccount, unrealizedPnl } from './fold.js';
 
 const trade = (over: Partial<TradeExecuted>): TradeExecuted => ({
   orderId: 'o',
+  accountId: 'acc',
   symbol: 'BTCUSDT',
   side: 'buy',
   qty: 1,

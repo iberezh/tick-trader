@@ -5,10 +5,12 @@ import { echarts } from '@/lib/echarts';
 interface Props {
   option: ChartOption;
   height: number | string;
+  // Hands the live instance to the caller (e.g. for drawing overlays); null on teardown.
+  onReady?: (chart: EChartInstance | null) => void;
 }
 
 // Thin React wrapper: own the ECharts instance, resize with the container, dispose on unmount.
-export function EChart({ option, height }: Props) {
+export function EChart({ option, height, onReady }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const chartRef = useRef<EChartInstance | null>(null);
 
@@ -17,14 +19,16 @@ export function EChart({ option, height }: Props) {
     if (!el) return;
     const chart = echarts.init(el, undefined, { renderer: 'canvas' });
     chartRef.current = chart;
+    onReady?.(chart);
     const observer = new ResizeObserver(() => chart.resize());
     observer.observe(el);
     return () => {
       observer.disconnect();
       chart.dispose();
       chartRef.current = null;
+      onReady?.(null);
     };
-  }, []);
+  }, [onReady]);
 
   // Merge updates so live ticks don't reset pan/zoom state.
   useEffect(() => {

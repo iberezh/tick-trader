@@ -1,9 +1,12 @@
+import fastifyCookie from '@fastify/cookie';
 import fastifyCors from '@fastify/cors';
+import fastifyJwt from '@fastify/jwt';
 import fastifySwagger from '@fastify/swagger';
 import fastifySwaggerUi from '@fastify/swagger-ui';
 import type { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import { fastify } from 'fastify';
-import { config } from './config.js';
+import { AUTH_COOKIE } from './auth.js';
+import { config, isAllowedOrigin } from './config.js';
 import { startConsumers } from './consumers.js';
 import { ensureSchema, insertTick, insertTrade } from './db.js';
 import { queryRoutes } from './queries/routes.js';
@@ -18,16 +21,24 @@ async function main(): Promise<void> {
     onPrice: async (tick) => {
       latestPrices[tick.symbol] = tick.price;
       await insertTick(tick);
-      hub.broadcast({ type: 'price', ...tick });
+      hub.broadcastPrice({ type: 'price', ...tick });
     },
     onTrade: async (trade) => {
       await insertTrade(trade);
-      hub.broadcast({ type: 'trade', ...trade });
+      hub.broadcastToAccount(trade.accountId, { type: 'trade', ...trade });
     },
   });
 
   const app = fastify().withTypeProvider<TypeBoxTypeProvider>();
-  await app.register(fastifyCors, { origin: true });
+  await app.register(fastifyCors, {
+    origin: (origin, cb) => cb(null, isAllowedOrigin(origin)),
+    credentials: true,
+  });
+  await app.register(fastifyCookie);
+  await app.register(fastifyJwt, {
+    secret: config.jwtSecret,
+    cookie: { cookieName: AUTH_COOKIE, signed: false },
+  });
   await app.register(fastifySwagger, {
     openapi: { info: { title: 'tick-trader · analytics', version: '0.1.0' } },
   });

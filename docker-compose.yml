@@ -55,6 +55,8 @@ services:
     environment:
       KAFKA_BROKERS: kafka:9092
       DATABASE_URL: postgresql://tick:tick@postgres:5432/tick
+      # Shared with analytics so both verify the same auth cookie. Set for anything real.
+      JWT_SECRET: ${JWT_SECRET:-dev-only-insecure-change-me}
       PORT: '4001'
     ports:
       - '4001:4001'
@@ -67,6 +69,7 @@ services:
     environment:
       KAFKA_BROKERS: kafka:9092
       DATABASE_URL: postgresql://tick:tick@postgres:5432/tick
+      JWT_SECRET: ${JWT_SECRET:-dev-only-insecure-change-me}
       PORT: '4003'
     ports:
       - '4003:4003'
