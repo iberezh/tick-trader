@@ -24,12 +24,29 @@ let state: State = {
 };
 
 const listeners = new Set<() => void>();
-const emit = (): void => {
+const notify = (): void => {
   for (const listener of listeners) listener();
+};
+
+// State updates apply synchronously, but subscribers are notified at most once per frame.
+// A burst of SSE ticks then costs ONE render + chart redraw instead of one per message,
+// which is what keeps the dashboard responsive under a chatty live feed.
+let scheduled = false;
+const scheduleNotify = (): void => {
+  if (scheduled) return;
+  scheduled = true;
+  const raf =
+    typeof requestAnimationFrame === 'function'
+      ? requestAnimationFrame
+      : (cb: () => void) => setTimeout(cb, 16);
+  raf(() => {
+    scheduled = false;
+    notify();
+  });
 };
 const set = (patch: Partial<State>): void => {
   state = { ...state, ...patch };
-  emit();
+  scheduleNotify();
 };
 
 export const store = {
