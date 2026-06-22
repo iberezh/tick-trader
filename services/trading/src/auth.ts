@@ -34,21 +34,25 @@ declare module '@fastify/jwt' {
 // preHandler: verify the JWT cookie and attach request.account; 401 otherwise.
 export async function requireAuth(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   try {
-    request.account = await request.jwtVerify<Account>();
+    const { id, email } = await request.jwtVerify<Account>();
+    request.account = { id, email }; // drop JWT iat/exp so handlers see only the account
   } catch {
     await reply.code(401).send({ error: 'unauthorized' });
+    return;
   }
 }
+
+const COOKIE_OPTS = {
+  httpOnly: true,
+  sameSite: 'lax',
+  secure: process.env.NODE_ENV === 'production', // require HTTPS off localhost
+  path: '/',
+} as const;
 
 export const authRoutes: FastifyPluginAsyncTypebox = (app) => {
   const issue = (reply: FastifyReply, account: Account): void => {
     const token = app.jwt.sign(account, { expiresIn: '7d' });
-    reply.setCookie(AUTH_COOKIE, token, {
-      httpOnly: true,
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 60 * 60 * 24 * 7,
-    });
+    reply.setCookie(AUTH_COOKIE, token, { ...COOKIE_OPTS, maxAge: 60 * 60 * 24 * 7 });
   };
 
   app.post('/api/v1/auth/register', { schema: { body: Credentials } }, async (request, reply) => {
@@ -73,7 +77,8 @@ export const authRoutes: FastifyPluginAsyncTypebox = (app) => {
   });
 
   app.post('/api/v1/auth/logout', (_request, reply) => {
-    reply.clearCookie(AUTH_COOKIE, { path: '/' });
+    // clear options must match the set options or some browsers keep the cookie
+    reply.clearCookie(AUTH_COOKIE, COOKIE_OPTS);
     return { ok: true };
   });
 

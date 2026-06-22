@@ -2,6 +2,7 @@ import type { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox';
 import { Type } from '@sinclair/typebox';
 import { buildPortfolio, STARTING_CASH } from '@tick-trader/contracts';
 import { requireAuth } from '../auth.js';
+import { isAllowedOrigin } from '../config.js';
 import { latestPricesAsOf, listTradesUpTo, ticksInRange, ticksInRangeAllSymbols } from '../db.js';
 import { sampleEquityCurve, toCandles } from '../projections.js';
 import type { SseHub } from '../sse.js';
@@ -96,14 +97,19 @@ export function queryRoutes(deps: QueryDeps): FastifyPluginAsyncTypebox {
     }));
 
     app.get('/api/v1/stream', { preHandler: requireAuth }, (request, reply) => {
-      reply.raw.writeHead(200, {
+      const headers: Record<string, string> = {
         'content-type': 'text/event-stream',
         'cache-control': 'no-cache',
         connection: 'keep-alive',
-        // raw write bypasses the cors plugin; reflect the origin + allow the auth cookie.
-        'access-control-allow-origin': request.headers.origin ?? '*',
-        'access-control-allow-credentials': 'true',
-      });
+      };
+      // raw write bypasses the cors plugin; mirror its allowlist so the cookie only rides
+      // back to trusted origins (an attacker page's EventSource gets no CORS grant).
+      const origin = request.headers.origin;
+      if (isAllowedOrigin(origin)) {
+        headers['access-control-allow-origin'] = origin;
+        headers['access-control-allow-credentials'] = 'true';
+      }
+      reply.raw.writeHead(200, headers);
       reply.raw.write('\n');
       const client = (event: unknown) => reply.raw.write(`data: ${JSON.stringify(event)}\n\n`);
       const entry = deps.hub.add(client, request.account.id);

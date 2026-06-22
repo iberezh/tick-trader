@@ -23,8 +23,10 @@ declare module '@fastify/jwt' {
 // preHandler: verify the JWT cookie and attach request.account; 401 otherwise.
 export async function requireAuth(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   try {
-    request.account = await request.jwtVerify<Account>();
+    const { id, email } = await request.jwtVerify<Account>();
+    request.account = { id, email };
   } catch {
     await reply.code(401).send({ error: 'unauthorized' });
+    return;
   }
 }

@@ -6,7 +6,7 @@ import fastifySwaggerUi from '@fastify/swagger-ui';
 import type { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import { fastify } from 'fastify';
 import { AUTH_COOKIE, authRoutes } from './auth.js';
-import { config } from './config.js';
+import { config, isAllowedOrigin } from './config.js';
 import { ensureSchema } from './db.js';
 import { createProducer, startPriceCache } from './kafka.js';
 import { orderRoutes } from './orders/routes.js';
@@ -18,7 +18,10 @@ async function main(): Promise<void> {
   await startPriceCache(lastPrice);
 
   const app = fastify().withTypeProvider<TypeBoxTypeProvider>();
-  await app.register(fastifyCors, { origin: true, credentials: true });
+  await app.register(fastifyCors, {
+    origin: (origin, cb) => cb(null, isAllowedOrigin(origin)),
+    credentials: true,
+  });
   await app.register(fastifyCookie);
   await app.register(fastifyJwt, {
     secret: config.jwtSecret,
