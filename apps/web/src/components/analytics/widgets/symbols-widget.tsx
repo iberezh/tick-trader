@@ -1,12 +1,13 @@
 import { useMemo } from 'react';
 import { useManyCandles } from '@/hooks/use-analytics-data';
 import { SERIES_COLORS, type SymbolSeries, symbolsOption } from '@/lib/analytics-charts';
+import { ChartSkeleton } from '../../app/chart-skeleton';
 import { EChart } from '../../app/echart';
 
 const SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT'];
 
 export function SymbolsWidget() {
-  const candles = useManyCandles(SYMBOLS);
+  const { data: candles, loading } = useManyCandles(SYMBOLS);
   const option = useMemo(() => {
     const series: SymbolSeries[] = SYMBOLS.map((sym, i) => {
       const cs = candles[sym] ?? [];
@@ -23,5 +24,5 @@ export function SymbolsWidget() {
     );
     return symbolsOption(labels, series);
   }, [candles]);
-  return <EChart option={option} height="100%" />;
+  return loading ? <ChartSkeleton height="100%" /> : <EChart option={option} height="100%" />;
 }

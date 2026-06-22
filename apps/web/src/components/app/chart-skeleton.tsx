@@ -1,6 +1,6 @@
 // Placeholder shown in a chart's slot until its data has loaded, so the card never flashes
 // an empty box. Faux candles/gridlines keep the terminal look while it pulses.
-export function ChartSkeleton({ height }: { height: number }) {
+export function ChartSkeleton({ height }: { height: number | string }) {
   const bars = Array.from({ length: 14 }, (_, i) => i);
   return (
     <div
