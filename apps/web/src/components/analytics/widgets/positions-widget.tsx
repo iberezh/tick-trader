@@ -2,7 +2,7 @@ import { usePortfolioSnapshot } from '@/hooks/use-analytics-data';
 import { num } from '@/lib/format';
 
 export function PositionsWidget() {
-  const portfolio = usePortfolioSnapshot();
+  const { data: portfolio } = usePortfolioSnapshot();
   const rows = (portfolio?.positions ?? []).filter((p) => p.qty !== 0);
   return (
     <div className="h-full overflow-auto">

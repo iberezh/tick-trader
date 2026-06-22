@@ -2,6 +2,7 @@ import { useAtom, useSetAtom } from 'jotai';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
+import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
 import {
   asOfAtom,
   compareAtom,
@@ -26,11 +27,15 @@ const TYPES: WidgetType[] = [
 ];
 
 export function AnalyticsToolbar() {
-  const [asOf, setAsOf] = useAtom(asOfAtom);
+  const setAsOf = useSetAtom(asOfAtom);
   const [compare, setCompare] = useAtom(compareAtom);
   const setWidgets = useSetAtom(widgetsAtom);
   const setLayout = useSetAtom(layoutAtom);
   const [now] = useState(() => Date.now());
+  const [sliderVal, setSliderVal] = useState(now);
+  // Commit the scrub position to the shared atom only after the drag settles, so the whole
+  // board refetches once per pause instead of on every pixel of movement.
+  const commitAsOf = useDebouncedCallback((v: number) => setAsOf(v >= now ? null : v), 150);
 
   const addWidget = (type: WidgetType): void => {
     const id = `${type}-${Date.now()}`;
@@ -44,6 +49,7 @@ export function AnalyticsToolbar() {
   const reset = (): void => {
     setWidgets(DEFAULT_WIDGETS);
     setLayout(DEFAULT_LAYOUT);
+    setSliderVal(now);
     setAsOf(null);
   };
 
@@ -55,18 +61,26 @@ export function AnalyticsToolbar() {
           min={now - TIME_WINDOW_MS}
           max={now}
           step={1000}
-          value={[asOf ?? now]}
+          value={[sliderVal]}
           onValueChange={(v) => {
             const next = v[0] ?? now;
-            setAsOf(next >= now ? null : next);
+            setSliderVal(next);
+            commitAsOf(next);
           }}
         />
         <span className="w-20 text-right font-mono text-xs text-up">
-          {asOf !== null ? new Date(asOf).toLocaleTimeString() : 'now'}
+          {sliderVal < now ? new Date(sliderVal).toLocaleTimeString() : 'now'}
         </span>
       </div>
-      {asOf !== null ? (
-        <Button size="sm" variant="secondary" onClick={() => setAsOf(null)}>
+      {sliderVal < now ? (
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={() => {
+            setSliderVal(now);
+            setAsOf(null);
+          }}
+        >
           Live
         </Button>
       ) : null}

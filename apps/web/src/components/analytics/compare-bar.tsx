@@ -2,6 +2,7 @@ import { useAtom, useAtomValue } from 'jotai';
 import { useState } from 'react';
 import { Slider } from '@/components/ui/slider';
 import { usePortfolioAt } from '@/hooks/use-analytics-data';
+import { useDebouncedCallback } from '@/hooks/use-debounced-callback';
 import { asOfAtom, compareAtom, TIME_WINDOW_MS } from '@/lib/analytics-atoms';
 import { money } from '@/lib/format';
 
@@ -24,8 +25,11 @@ export function CompareBar() {
   const asOf = useAtomValue(asOfAtom);
   const [compare, setCompare] = useAtom(compareAtom);
   const [now] = useState(() => Date.now());
-  const atT = usePortfolioAt(asOf);
-  const atT2 = usePortfolioAt(compare);
+  const [sliderVal, setSliderVal] = useState(compare ?? now - 1_800_000);
+  // Commit the dragged T2 to the atom only after the drag settles (see toolbar).
+  const commitCompare = useDebouncedCallback((v: number) => setCompare(v), 150);
+  const { data: atT } = usePortfolioAt(asOf);
+  const { data: atT2 } = usePortfolioAt(compare);
 
   if (compare === null) return null;
 
@@ -37,11 +41,15 @@ export function CompareBar() {
           min={now - TIME_WINDOW_MS}
           max={now}
           step={1000}
-          value={[compare]}
-          onValueChange={(v) => setCompare(v[0] ?? compare)}
+          value={[sliderVal]}
+          onValueChange={(v) => {
+            const next = v[0] ?? sliderVal;
+            setSliderVal(next);
+            commitCompare(next);
+          }}
         />
         <span className="w-20 text-right font-mono text-xs text-[#f5b81a]">
-          {new Date(compare).toLocaleTimeString()}
+          {new Date(sliderVal).toLocaleTimeString()}
         </span>
       </div>
       {atT && atT2 ? (
