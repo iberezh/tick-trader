@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { DrawSegment } from '@/lib/chart-theme';
+import type { DrawSegment } from '@/lib/draw';
 import type { EChartInstance } from '@/lib/echarts';
 
 const PALETTE = ['#00e08f', '#ff5247', '#e9f2ec', '#f5b301', '#5b9bff'] as const;
+
+export type DrawMode = 'line' | 'free';
 
 function load(key: string): DrawSegment[] {
   try {
@@ -17,9 +19,11 @@ export interface Drawing {
   segments: DrawSegment[];
   preview: DrawSegment | null;
   enabled: boolean;
+  mode: DrawMode;
   color: string;
   palette: readonly string[];
   toggle: () => void;
+  setMode: (m: DrawMode) => void;
   setColor: (c: string) => void;
   undo: () => void;
   clear: () => void;
@@ -29,12 +33,15 @@ export function useDrawing(chart: EChartInstance | null, storageKey: string | nu
   const [segments, setSegments] = useState<DrawSegment[]>([]);
   const [preview, setPreview] = useState<DrawSegment | null>(null);
   const [enabled, setEnabled] = useState(false);
+  const [mode, setMode] = useState<DrawMode>('line');
   const [color, setColor] = useState<string>(PALETTE[0]);
-  // Read through a ref inside the handlers so changing colour mid-drag doesn't rebind them.
+  // Read through refs inside the handlers so changing colour/mode mid-drag doesn't rebind them.
   const colorRef = useRef(color);
   colorRef.current = color;
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
 
-  // Reload when the account/symbol key changes; each pair keeps its own lines.
+  // Reload when the account/symbol key changes; each pair keeps its own shapes.
   useEffect(() => {
     setSegments(storageKey ? load(storageKey) : []);
     setPreview(null);
@@ -45,18 +52,19 @@ export function useDrawing(chart: EChartInstance | null, storageKey: string | nu
     try {
       localStorage.setItem(storageKey, JSON.stringify(segments));
     } catch {
-      // storage unavailable — lines simply won't persist
+      // storage unavailable — shapes simply won't persist
     }
   }, [segments, storageKey]);
 
-  // Pointer drag → a segment in [candleIndex, price] space, bound only while the pen is active.
+  // Pointer drag → a [timestamp, price] polyline: 2 points in line mode, many in free mode.
   useEffect(() => {
     if (!chart || !enabled) {
-      setPreview(null); // drop any half-drawn line when the pen is toggled off
+      setPreview(null); // drop any half-drawn shape when the pen is toggled off
       return;
     }
     const dom = chart.getDom();
-    let start: [number, number] | null = null;
+    let stroke: [number, number][] | null = null; // anchors captured for the active drag
+    let raf = 0;
 
     const toData = (e: PointerEvent): [number, number] | null => {
       const p = chart.convertFromPixel({ xAxisIndex: 0, yAxisIndex: 0 }, [e.offsetX, e.offsetY]);
@@ -66,33 +74,49 @@ export function useDrawing(chart: EChartInstance | null, storageKey: string | nu
       }
       return null;
     };
+    const flush = () => {
+      raf = 0;
+      if (stroke) setPreview({ id: 'preview', color: colorRef.current, points: [...stroke] });
+    };
     const down = (e: PointerEvent) => {
-      start = toData(e);
+      const p = toData(e);
+      stroke = p ? [p] : null;
     };
     const move = (e: PointerEvent) => {
-      if (!start) return;
-      const end = toData(e);
-      if (end) setPreview({ id: 'preview', color: colorRef.current, points: [start, end] });
+      if (!stroke) return;
+      const p = toData(e);
+      const start = stroke[0];
+      if (!p || !start) return;
+      if (modeRef.current === 'free') {
+        stroke.push(p); // accumulate the freehand path, repaint at most once per frame
+        if (!raf) raf = requestAnimationFrame(flush);
+      } else {
+        setPreview({ id: 'preview', color: colorRef.current, points: [start, p] });
+      }
     };
     const up = (e: PointerEvent) => {
-      if (!start) return;
+      if (!stroke) return;
+      const start = stroke[0];
       const end = toData(e);
-      if (end && (end[0] !== start[0] || end[1] !== start[1])) {
+      let points: [number, number][] | null = null;
+      if (modeRef.current === 'free') {
+        if (end) stroke.push(end);
+        if (stroke.length >= 2) points = [...stroke];
+      } else if (start && end && (end[0] !== start[0] || end[1] !== start[1])) {
+        points = [start, end];
+      }
+      if (points) {
         setSegments((prev) => [
           ...prev,
-          {
-            id: crypto.randomUUID(),
-            color: colorRef.current,
-            points: [start as [number, number], end],
-          },
+          { id: crypto.randomUUID(), color: colorRef.current, points },
         ]);
       }
-      start = null;
+      stroke = null;
       setPreview(null);
     };
-    // pointercancel (touch interrupt, focus loss) aborts the drag without committing a line.
+    // pointercancel (touch interrupt, focus loss) aborts the drag without committing.
     const cancel = () => {
-      start = null;
+      stroke = null;
       setPreview(null);
     };
     dom.addEventListener('pointerdown', down);
@@ -100,6 +124,7 @@ export function useDrawing(chart: EChartInstance | null, storageKey: string | nu
     dom.addEventListener('pointerup', up);
     dom.addEventListener('pointercancel', cancel);
     return () => {
+      if (raf) cancelAnimationFrame(raf);
       dom.removeEventListener('pointerdown', down);
       dom.removeEventListener('pointermove', move);
       dom.removeEventListener('pointerup', up);
@@ -111,5 +136,17 @@ export function useDrawing(chart: EChartInstance | null, storageKey: string | nu
   const undo = useCallback(() => setSegments((prev) => prev.slice(0, -1)), []);
   const clear = useCallback(() => setSegments([]), []);
 
-  return { segments, preview, enabled, color, palette: PALETTE, toggle, setColor, undo, clear };
+  return {
+    segments,
+    preview,
+    enabled,
+    mode,
+    color,
+    palette: PALETTE,
+    toggle,
+    setMode,
+    setColor,
+    undo,
+    clear,
+  };
 }

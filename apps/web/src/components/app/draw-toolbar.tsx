@@ -3,15 +3,19 @@ import { cn } from '@/lib/utils';
 
 type Props = Pick<
   Drawing,
-  'enabled' | 'color' | 'palette' | 'toggle' | 'setColor' | 'undo' | 'clear'
+  'enabled' | 'mode' | 'color' | 'palette' | 'toggle' | 'setMode' | 'setColor' | 'undo' | 'clear'
 > & { hasLines: boolean };
+
+const MODES = ['line', 'free'] as const;
 
 export function DrawToolbar({
   enabled,
+  mode,
   color,
   palette,
   hasLines,
   toggle,
+  setMode,
   setColor,
   undo,
   clear,
@@ -32,6 +36,23 @@ export function DrawToolbar({
       </button>
       {enabled ? (
         <>
+          <div className="flex items-center gap-1 font-mono text-xs">
+            {MODES.map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setMode(m)}
+                className={cn(
+                  'rounded px-1.5 py-0.5 transition-colors',
+                  mode === m
+                    ? 'bg-secondary text-foreground'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {m}
+              </button>
+            ))}
+          </div>
           <div className="flex items-center gap-1">
             {palette.map((c) => (
               <button

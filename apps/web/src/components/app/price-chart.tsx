@@ -3,7 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/use-auth';
 import { useDrawing } from '@/hooks/use-drawing';
 import { type Candle, getCandles } from '@/lib/api';
-import { candleOption, drawOverlay } from '@/lib/chart-theme';
+import { candleTimeOption } from '@/lib/chart-theme';
+import { drawOverlay } from '@/lib/draw';
 import type { EChartInstance } from '@/lib/echarts';
 import { formatSymbol } from '@/lib/format';
 import { store, useStore } from '@/lib/store';
@@ -26,7 +27,8 @@ export function PriceChart() {
   const onReady = useCallback((c: EChartInstance | null) => setChart(c), []);
 
   const { account } = useAuth();
-  const storageKey = account ? `tt:draw:${account.id}:${symbol}` : null;
+  // v2: drawings now store [timestamp, price]; the old v1 (candle-index) shapes are incompatible.
+  const storageKey = account ? `tt:draw:v2:${account.id}:${symbol}` : null;
   const draw = useDrawing(chart, storageKey);
 
   // (Re)load history when the symbol or the as-of point changes — historical scrubs end at asOf.
@@ -68,7 +70,14 @@ export function PriceChart() {
   const option = useMemo(() => {
     const lines = draw.preview ? [...draw.segments, draw.preview] : draw.segments;
     const overlay = lines.length ? drawOverlay(lines) : undefined;
-    return candleOption(candles, overlay, draw.enabled);
+    // Furthest drawn timestamp keeps future-projected shapes on-screen even after the pen is off.
+    const drawnMaxT = lines.reduce((m, s) => s.points.reduce((mm, [t]) => Math.max(mm, t), m), 0);
+    return candleTimeOption(candles, {
+      overlay,
+      lockZoom: draw.enabled,
+      future: draw.enabled,
+      drawnMaxT,
+    });
   }, [candles, draw.segments, draw.preview, draw.enabled]);
 
   return (
@@ -78,10 +87,12 @@ export function PriceChart() {
           <CardTitle>{formatSymbol(symbol)} · price</CardTitle>
           <DrawToolbar
             enabled={draw.enabled}
+            mode={draw.mode}
             color={draw.color}
             palette={draw.palette}
             hasLines={draw.segments.length > 0}
             toggle={draw.toggle}
+            setMode={draw.setMode}
             setColor={draw.setColor}
             undo={draw.undo}
             clear={draw.clear}
