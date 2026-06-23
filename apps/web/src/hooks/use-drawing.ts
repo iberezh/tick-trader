@@ -133,8 +133,14 @@ export function useDrawing(chart: EChartInstance | null, storageKey: string | nu
   }, [chart, enabled]);
 
   const toggle = useCallback(() => setEnabled((v) => !v), []);
-  const undo = useCallback(() => setSegments((prev) => prev.slice(0, -1)), []);
-  const clear = useCallback(() => setSegments([]), []);
+  const undo = useCallback(() => {
+    setSegments((prev) => prev.slice(0, -1));
+    setPreview(null);
+  }, []);
+  const clear = useCallback(() => {
+    setSegments([]);
+    setPreview(null);
+  }, []);
 
   return {
     segments,
