@@ -11,4 +11,19 @@ export default defineConfig(({ mode }) => ({
   define: {
     'process.env.NODE_ENV': JSON.stringify(mode === 'production' ? 'production' : 'development'),
   },
+  build: {
+    // ECharts (already tree-shaken to the pieces we register) is ~210kB gzipped on its own —
+    // that's the floor for a charting lib, so don't warn about its isolated chunk.
+    chunkSizeWarningLimit: 700,
+    // Split the heavy, rarely-changing deps into their own chunks so ECharts (the bulk of the
+    // bundle) is cached separately from app code and doesn't block first paint of the landing.
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          echarts: ['echarts/core', 'echarts/charts', 'echarts/components', 'echarts/renderers'],
+          react: ['react', 'react-dom', 'react-router-dom'],
+        },
+      },
+    },
+  },
 }));
