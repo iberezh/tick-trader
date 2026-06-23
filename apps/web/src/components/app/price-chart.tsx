@@ -69,7 +69,9 @@ export function PriceChart() {
 
   const option = useMemo(() => {
     const lines = draw.preview ? [...draw.segments, draw.preview] : draw.segments;
-    const overlay = lines.length ? drawOverlay(lines) : undefined;
+    // Always emit the overlay series (even empty) so ECharts' merge update removes cleared
+    // shapes — a series dropped from the array would otherwise linger on the canvas.
+    const overlay = drawOverlay(lines);
     // Furthest drawn timestamp keeps future-projected shapes on-screen even after the pen is off.
     const drawnMaxT = lines.reduce((m, s) => s.points.reduce((mm, [t]) => Math.max(mm, t), m), 0);
     return candleTimeOption(candles, {
